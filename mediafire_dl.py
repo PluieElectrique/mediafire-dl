@@ -183,6 +183,45 @@ class MediafireDownloader:
 
         return contents
 
+    # Download the file at the given URL (can be any URL, not just a Mediafire
+    # file) to the given path
+    def download_from_url(self, url, path, file_size=None, chunk_size=16384):
+        if file_size is None:
+            head = self.s.head(url)
+            # XXX: If file_size is provided, this is probably a file that we
+            # know exists (the API doesn't return anything for skipped files
+            # and we don't try to download deleted files). If not, this is
+            # probably a conv link, so it might not exist. This is tight
+            # coupling, but I can't think of a better way right now.
+            head.raise_for_status()
+            file_size = int(head.headers["Content-Length"])
+        start_byte = os.path.getsize(path) if os.path.exists(path) else 0
+
+        if file_size == start_byte:
+            return
+
+        desc = os.path.basename(path)
+        if len(desc) > 60:
+            desc = desc[:28] + "<..>" + desc[-28:]
+        elif len(desc) < 60:
+            desc = f"{desc:<60}"
+
+        with open(path, "ab") as f, self.s.get(
+            url, headers={"Range": f"bytes={start_byte}-"}, stream=True
+        ) as r, tqdm(
+            initial=start_byte,
+            total=file_size,
+            desc=desc,
+            unit="B",
+            unit_scale=True,
+        ) as pbar:
+            for chunk in r.iter_content(chunk_size=chunk_size):
+                # NOTE: This is necessary to filter out "keep-alive" chunks?
+                # But the requests docs don't mention this at all.
+                if chunk:
+                    f.write(chunk)
+                    pbar.update(len(chunk))
+
     def scrape_download_page(self, url):
         r = self.s.get(url, allow_redirects=False)
         redirects = 0
@@ -208,43 +247,6 @@ class MediafireDownloader:
         else:
             return None, None
 
-    def download_file(self, url, path, file_size=None, chunk_size=16384):
-        if file_size is None:
-            file_size = int(self.s.head(url).headers["Content-Length"])
-        start_byte = os.path.getsize(path) if os.path.exists(path) else 0
-
-        if file_size == start_byte:
-            return
-
-        download_url, upload_country = self.scrape_download_page(url)
-        if not download_url:
-            logger.warning(f"No download URL found for {url}")
-            return
-
-        desc = os.path.basename(path)
-        if len(desc) > 60:
-            desc = desc[:28] + "<..>" + desc[-28:]
-        elif len(desc) < 60:
-            desc = f"{desc:<60}"
-
-        with open(path, "ab") as f, self.s.get(
-            download_url, headers={"Range": f"bytes={start_byte}-"}, stream=True
-        ) as r, tqdm(
-            initial=start_byte,
-            total=file_size,
-            desc=desc,
-            unit="B",
-            unit_scale=True,
-        ) as pbar:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                # NOTE: This is necessary to filter out "keep-alive" chunks?
-                # But the requests docs don't mention this at all.
-                if chunk:
-                    f.write(chunk)
-                    pbar.update(len(chunk))
-
-        return upload_country
-
     def scrape_custom_folder(self, name):
         # Without a user agent, the <script> containing the folderkey will be
         # replaced by an "upgrade browser" popup
@@ -266,7 +268,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "input",
-        help="Input JSON with file keys, folder keys, and custom folder names",
+        help="Input JSON with file keys, folder keys, custom folder names, and conv links",
     )
     parser.add_argument("out_dir", help="Output directory")
     parser.add_argument(
@@ -283,10 +285,18 @@ if __name__ == "__main__":
     os.makedirs(args.out_dir, exist_ok=True)
     mfdl = MediafireDownloader()
 
-    # File and folders which don’t return an API response
+    # File, folders, and conv links which don't return an API response/don't exist
     skipped = []
     # Files which have a "delete_date"
     deleted = []
+
+    for url in tqdm(input_keys["conv"], desc="Get conv links", unit=""):
+        try:
+            path = os.path.join(args.out_dir, url.split("/")[-1])
+            mfdl.download_from_url(url, path)
+        except requests.exceptions.HTTPError as err:
+            logger.warning(f"Failed to download conv URL: {err}")
+            skipped.append(url)
 
     folders = defaultdict(lambda: {"is_child": False, "children": []})
     folderkeys_seen = set()
@@ -344,8 +354,15 @@ if __name__ == "__main__":
         if "delete_date" in info:
             deleted.append(qk)
         elif not args.metadata_only:
-            upload_country = mfdl.download_file(
-                info["links"]["normal_download"],
+            download_url, upload_country = mfdl.scrape_download_page(
+                info["links"]["normal_download"]
+            )
+            if not download_url:
+                logger.warning(f"No download URL found for {url}")
+                return
+
+            mfdl.download_from_url(
+                download_url,
                 os.path.join(path, name),
                 file_size=int(info["size"]),
             )

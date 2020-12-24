@@ -10,7 +10,7 @@ Install `requests` and `tqdm`, e.g. with `pip install -r requirements.txt`.
 
 ## Usage
 
-Put your file keys (quickkeys), folder keys, and custom folders in a JSON file like so:
+Put your file keys (quickkeys), folder keys, custom folders, and conv links in a JSON file like so:
 ```json
 {
     "file": [
@@ -24,6 +24,10 @@ Put your file keys (quickkeys), folder keys, and custom folders in a JSON file l
     "custom_folder": [
         "[name 1]",
         "[name 2]"
+    ],
+    "conv": [
+        "[conv link 1]",
+        "[conv link 2]"
     ]
 }
 ```
@@ -31,7 +35,7 @@ Put your file keys (quickkeys), folder keys, and custom folders in a JSON file l
 
 Run the tool with:
 ```
-python mediafire_dl.py [--metadata-only] [--indent INDENT] input out_dir
+python mediafire_dl.py [-h] [--metadata-only] [--indent INDENT] input out_dir
 ```
 Where `input` is the JSON file from above, and `out_dir` is where you want to save everything. Pass `--metadata-only` to only fetch metadata or `--indent` to change the JSON indent.
 
@@ -50,8 +54,10 @@ out_dir/
     ...
   another owner/
     ...
+  conv_file1.jpg
+  ...
 ```
-The `mfdl_summary_[TIMESTAMP].json` file contains the skipped file/folder keys (for which the API returned nothing) and the deleted file keys (for which the API returned data, but the actual file is gone).
+The `mfdl_summary_[TIMESTAMP].json` file contains the skipped file/folder keys (which don't exist) and the deleted file keys (for which the API returned data, but the actual file is gone).
 
 ## Notes
 
