@@ -71,6 +71,8 @@ class MediafireError(Exception):
 
 class MediafireDownloader:
     MEDIAFIRE_API_BASE = "https://www.mediafire.com/api/1.5/"
+    # Required for scraping custom folders
+    USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; rv:78.0) Gecko/20100101 Firefox/78.0"
     QUICKKEY_RE = re.compile(r"[a-z0-9]{11}|[a-z0-9]{15}")
     DL_URL_RE = re.compile(r"https://download\d+\.mediafire\.com/")
     DL_URL_SCRAPE_RE = re.compile(
@@ -79,6 +81,7 @@ class MediafireDownloader:
     UPLOAD_COUNTRY_SCRAPE_RE = re.compile(
         r'<div class="lazyload DLExtraInfo-sectionGraphic flag" data-lazyclass="flag-(..)">'
     )
+    CUSTOM_FOLDER_SCRAPE_RE = re.compile(r'gs= false,afI= "([a-z0-9]{13})",afQ= 0')
     MAX_REDIRECTS = requests.models.DEFAULT_REDIRECT_LIMIT
 
     def __init__(self):
@@ -242,6 +245,20 @@ class MediafireDownloader:
 
         return upload_country
 
+    def scrape_custom_folder(self, name):
+        # Without a user agent, the <script> containing the folderkey will be
+        # replaced by an "upgrade browser" popup
+        r = self.s.get(
+            "https://www.mediafire.com/" + name, headers={"User-Agent": self.USER_AGENT}
+        )
+        folderkey = self.CUSTOM_FOLDER_SCRAPE_RE.search(r.text)
+        if folderkey:
+            return folderkey.group(1)
+        elif r.url == "https://www.mediafire.com/error.php?errno=370":
+            logger.warning(f"Direct linking disabled for custom folder: {name}")
+        else:
+            logger.warning(f"Invalid custom folder: {name}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -249,7 +266,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "input",
-        help='Input JSON: {"file": [list of quickkeys], "folder": [list of folderkeys]}',
+        help="Input JSON with file keys, folder keys, and custom folder names",
     )
     parser.add_argument("out_dir", help="Output directory")
     parser.add_argument(
@@ -271,10 +288,20 @@ if __name__ == "__main__":
     # Files which have a "delete_date"
     deleted = []
 
-    pbar = tqdm(desc="Get folder info", unit="")
     folders = defaultdict(lambda: {"is_child": False, "children": []})
     folderkeys_seen = set()
     folderkeys_queue = set(input_keys.get("folder", []))
+
+    for custom_name in tqdm(
+        input_keys.get("custom_folder", []), desc="Get custom folder key"
+    ):
+        fk = mfdl.scrape_custom_folder(custom_name)
+        if fk:
+            folderkeys_queue.add(fk)
+        else:
+            skipped.append(custom_name)
+
+    pbar = tqdm(desc="Get folder info", unit="")
     while folderkeys_queue:
         fk = folderkeys_queue.pop()
         folderkeys_seen.add(fk)

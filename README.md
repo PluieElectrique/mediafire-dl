@@ -10,7 +10,7 @@ Install `requests` and `tqdm`, e.g. with `pip install -r requirements.txt`.
 
 ## Usage
 
-Put your file keys (quickkeys) and folder keys in a JSON file like so:
+Put your file keys (quickkeys), folder keys, and custom folders in a JSON file like so:
 ```json
 {
     "file": [
@@ -20,10 +20,14 @@ Put your file keys (quickkeys) and folder keys in a JSON file like so:
     "folder": [
         "[folderkey 1]",
         "[folderkey 2]"
+    ],
+    "custom_folder": [
+        "[name 1]",
+        "[name 2]"
     ]
 }
 ```
-(If you're just downloading files, you can leave out `folder`, and vice versa.)
+(You can leave out any of the categories if you don't have any keys for that category.)
 
 Run the tool with:
 ```
