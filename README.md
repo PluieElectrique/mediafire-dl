@@ -58,7 +58,7 @@ The `mfdl_summary_[TIMESTAMP].json` file contains the skipped file/folder keys (
 * When resuming a download job, already downloaded files will not be redownloaded and partially downloaded files will be resumed. However, all metadata will be redownloaded.
 * Folder avatars are not saved.
 * Upload countries are not included if `--metadata-only` is passed, as doing so requires scraping the file download page.
-* The API does not provide a unique ID for owners. So, if two owners have the same name, their files will share the same directory. (At the very least, there’s no chance of files/folders overwriting each other because all file/folder names include their unique key.)
+* The API does not provide a unique ID for owners. So, if two owners have the same name, their files will share the same directory. (At the very least, there's no chance of files/folders overwriting each other because all file/folder names include their unique key.)
 
 ## Legal
 
