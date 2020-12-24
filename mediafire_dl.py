@@ -194,7 +194,7 @@ class MediafireDownloader:
             # probably a conv link, so it might not exist. This is tight
             # coupling, but I can't think of a better way right now.
             head.raise_for_status()
-            file_size = int(head.headers["Content-Length"])
+            file_size = int(head.headers.get("Content-Length", -1))
         start_byte = os.path.getsize(path) if os.path.exists(path) else 0
 
         if file_size == start_byte:
