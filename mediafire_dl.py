@@ -290,7 +290,7 @@ if __name__ == "__main__":
     # Files which have a "delete_date"
     deleted = []
 
-    for url in tqdm(input_keys["conv"], desc="Get conv links", unit=""):
+    for url in tqdm(input_keys.get("conv", []), desc="Get conv links", unit=""):
         try:
             path = os.path.join(args.out_dir, url.split("/")[-1])
             mfdl.download_from_url(url, path)
