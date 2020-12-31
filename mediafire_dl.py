@@ -389,7 +389,7 @@ if __name__ == "__main__":
                 info["links"]["normal_download"]
             )
             if not download_url:
-                logger.warning(f"No download URL found for {url}")
+                logger.warning(f"No download URL found for {download_url}")
                 return
 
             mfdl.download_from_url(
