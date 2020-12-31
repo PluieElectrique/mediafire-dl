@@ -5,6 +5,8 @@ import json
 import logging
 import os
 import re
+import sys
+import signal
 
 import requests
 from tqdm import tqdm, trange
@@ -297,6 +299,28 @@ if __name__ == "__main__":
     # Files which have a "delete_date"
     deleted = []
 
+    def write_summary_json():
+        # Not UTC or ISO 8601, but it's readable and filename-safe
+        now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        summary_path = os.path.join(args.out_dir, f"mfdl_summary_{now}.json")
+        with open(summary_path, "w") as f:
+            json.dump(
+                {
+                    "skipped": skipped,
+                    "deleted": deleted,
+                },
+                f,
+                indent=args.indent,
+            )
+        print(f"Summary JSON written to: {summary_path}")
+
+    def write_summary_handler(signal, frame):
+        print("Exiting early...")
+        write_summary_json()
+        sys.exit(1)
+
+    signal.signal(signal.SIGINT, write_summary_handler)
+
     for url in tqdm(input_keys.get("conv", []), desc="Get conv links", unit=""):
         try:
             path = os.path.join(args.out_dir, url.split("/")[-1])
@@ -418,17 +442,4 @@ if __name__ == "__main__":
         try_mkdir(path)
         process_file(file_info, path)
 
-    # Not UTC or ISO 8601, but it's readable and filename-safe
-    now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    summary_path = os.path.join(args.out_dir, f"mfdl_summary_{now}.json")
-    with open(summary_path, "w") as f:
-        json.dump(
-            {
-                "skipped": skipped,
-                "deleted": deleted,
-            },
-            f,
-            indent=args.indent,
-        )
-
-    print(f"Summary JSON written to: {summary_path}")
+    write_summary_json()
