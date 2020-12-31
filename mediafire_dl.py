@@ -272,12 +272,19 @@ if __name__ == "__main__":
     )
     parser.add_argument("out_dir", help="Output directory")
     parser.add_argument(
+        "--log-file",
+        help="Log warnings/errors to file (default: log messages are printed)",
+    )
+    parser.add_argument(
         "--metadata-only", help="Only get metadata", action="store_true"
     )
     parser.add_argument(
         "--indent", help="JSON indent (default: %(default)s)", type=int, default=None
     )
     args = parser.parse_args()
+
+    if args.log_file:
+        logging.basicConfig(filename=args.log_file)
 
     with open(args.input) as f:
         input_keys = json.load(f)
