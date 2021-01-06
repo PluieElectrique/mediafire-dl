@@ -9,6 +9,8 @@ import sys
 import signal
 
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from tqdm import tqdm, trange
 
 
@@ -86,8 +88,12 @@ class MediafireDownloader:
     CUSTOM_FOLDER_SCRAPE_RE = re.compile(r'gs= false,afI= "([a-z0-9]{13})",afQ= 0')
     MAX_REDIRECTS = requests.models.DEFAULT_REDIRECT_LIMIT
 
-    def __init__(self):
+    def __init__(self, retry_total, retry_backoff):
         self.s = requests.Session()
+        retry = Retry(total=retry_total, backoff_factor=retry_backoff)
+        adapter = HTTPAdapter(max_retries=retry)
+        self.s.mount("http://", adapter)
+        self.s.mount("https://", adapter)
 
     def mf_api(self, method, params):
         params["response_format"] = "json"
@@ -286,6 +292,20 @@ if __name__ == "__main__":
     )
     parser.add_argument("out_dir", help="Output directory")
     parser.add_argument(
+        "--retry-total",
+        help="Number of times to retry a request (default: %(default)s)",
+        metavar="N",
+        type=int,
+        default=5,
+    )
+    parser.add_argument(
+        "--retry-backoff",
+        help="Retry after 0 sec, T sec, T^2 sec, etc. (default: %(default)s)",
+        metavar="T",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
         "--log-file",
         help="Log warnings/errors to file (default: log messages are printed)",
         metavar="FILE",
@@ -305,7 +325,7 @@ if __name__ == "__main__":
         input_keys = json.load(f)
 
     os.makedirs(args.out_dir, exist_ok=True)
-    mfdl = MediafireDownloader()
+    mfdl = MediafireDownloader(args.retry_total, args.retry_backoff)
 
     # File, folders, and conv links which don't return an API response/don't exist
     skipped = []
