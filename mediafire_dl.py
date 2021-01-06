@@ -288,6 +288,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--log-file",
         help="Log warnings/errors to file (default: log messages are printed)",
+        metavar="FILE",
     )
     parser.add_argument(
         "--metadata-only", help="Only get metadata", action="store_true"
