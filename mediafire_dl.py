@@ -215,9 +215,18 @@ class MediafireDownloader:
             # coupling, but I can't think of a better way right now.
             head.raise_for_status()
             file_size = int(head.headers.get("Content-Length", -1))
+
         start_byte = os.path.getsize(path) if os.path.exists(path) else 0
 
-        if file_size == start_byte:
+        if file_size == 0:
+            logger.warning(f"Skipping file with size of zero: {url}")
+            return
+        elif file_size < start_byte:
+            logger.warning(
+                f"Size on disk ({start_byte}) exceeds reported file size ({file_size}): {url}"
+            )
+            return
+        elif file_size == start_byte:
             return
 
         desc = os.path.basename(path)
