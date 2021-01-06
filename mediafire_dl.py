@@ -107,7 +107,7 @@ class MediafireDownloader:
                 (
                     -1,
                     f"Failed to decode JSON: {exc}\n"
-                    f"method='{method}', params={params}, r.text=`{r.text}`",
+                    f"method={repr(method)}, params={params}, r.text={repr(r.text)}",
                 )
             )
 
@@ -422,53 +422,66 @@ if __name__ == "__main__":
     quickkeys_seen = set()
 
     def process_file(info, path):
-        qk = info["quickkey"]
-        quickkeys_seen.add(qk)
+        try:
+            qk = info["quickkey"]
+            quickkeys_seen.add(qk)
 
-        name = get_clean_filename(qk, info["filename"])
+            name = get_clean_filename(qk, info["filename"])
 
-        if "delete_date" in info:
-            deleted.append(qk)
-        elif not args.metadata_only:
-            download_url, upload_country = mfdl.scrape_download_page(
-                info["links"]["normal_download"]
+            if "delete_date" in info:
+                deleted.append(qk)
+            elif not args.metadata_only:
+                download_url, upload_country = mfdl.scrape_download_page(
+                    info["links"]["normal_download"]
+                )
+                if not download_url:
+                    logger.warning(f"No download URL found for {download_url}")
+                    return
+
+                mfdl.download_from_url(
+                    download_url,
+                    os.path.join(path, name),
+                    file_size=int(info["size"]),
+                )
+                if upload_country:
+                    info["upload_country"] = upload_country
+
+            with open(os.path.join(path, name + ".json"), "w") as f:
+                json.dump(info, f, indent=args.indent)
+        except Exception as exc:
+            # It's ugly to wrap everything in a try block, but it's more
+            # important to not crash whenever possible
+            logger.error(
+                f"Failed to process file: info={info}, path={repr(path)}: {exc}"
             )
-            if not download_url:
-                logger.warning(f"No download URL found for {download_url}")
-                return
-
-            mfdl.download_from_url(
-                download_url,
-                os.path.join(path, name),
-                file_size=int(info["size"]),
-            )
-            if upload_country:
-                info["upload_country"] = upload_country
-
-        with open(os.path.join(path, name + ".json"), "w") as f:
-            json.dump(info, f, indent=args.indent)
 
     def process_folder(fk, path, pbar):
         folder = folders[fk]
         info = folder["info"]
-        logger.info(f"Processing folder {fk}: {info['name']}")
-        name = get_clean_foldername(fk, info["name"])
-        folder_path = os.path.join(path, name)
-        try_mkdir(folder_path)
+        try:
+            name = get_clean_foldername(fk, info["name"])
+            folder_path = os.path.join(path, name)
+            try_mkdir(folder_path)
 
-        with open(os.path.join(path, name + ".json"), "w") as f:
-            json.dump(info, f, indent=args.indent)
+            with open(os.path.join(path, name + ".json"), "w") as f:
+                json.dump(info, f, indent=args.indent)
 
-        if int(info["file_count"]) > 0:
-            for child_info in mfdl.get_folder_contents(
-                fk, content_type="files", owner_name=info["owner_name"]
-            ):
-                process_file(child_info, folder_path)
+            if int(info["file_count"]) > 0:
+                for child_info in mfdl.get_folder_contents(
+                    fk, content_type="files", owner_name=info["owner_name"]
+                ):
+                    process_file(child_info, folder_path)
 
-        for cfk in folder["children"]:
-            process_folder(cfk, folder_path, pbar)
+            for cfk in folder["children"]:
+                process_folder(cfk, folder_path, pbar)
 
-        pbar.update(1)
+            pbar.update(1)
+        except Exception as exc:
+            # It's ugly to wrap everything in a try block, but it's more
+            # important to not crash whenever possible
+            logger.error(
+                f"Failed to process folder: info={info}, path={repr(path)}: {exc}"
+            )
 
     with tqdm(desc="Process folders", total=len(folders), unit="") as pbar:
         for fk, folder in folders.items():
