@@ -235,21 +235,24 @@ class MediafireDownloader:
         elif len(desc) < 60:
             desc = f"{desc:<60}"
 
-        with open(path, "ab") as f, self.s.get(
-            url, headers={"Range": f"bytes={start_byte}-"}, stream=True
-        ) as r, tqdm(
-            initial=start_byte,
-            total=file_size,
-            desc=desc,
-            unit="B",
-            unit_scale=True,
-        ) as pbar:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                # NOTE: This is necessary to filter out "keep-alive" chunks?
-                # But the requests docs don't mention this at all.
-                if chunk:
-                    f.write(chunk)
-                    pbar.update(len(chunk))
+        try:
+            with open(path, "ab") as f, self.s.get(
+                url, headers={"Range": f"bytes={start_byte}-"}, stream=True
+            ) as r, tqdm(
+                initial=start_byte,
+                total=file_size,
+                desc=desc,
+                unit="B",
+                unit_scale=True,
+            ) as pbar:
+                for chunk in r.iter_content(chunk_size=chunk_size):
+                    # NOTE: This is necessary to filter out "keep-alive" chunks?
+                    # But the requests docs don't mention this at all.
+                    if chunk:
+                        f.write(chunk)
+                        pbar.update(len(chunk))
+        except Exception as exc:
+            logger.error(f"Failed to download {url}, skipping: {exc}")
 
     def scrape_download_page(self, url):
         r = self.s.get(url, allow_redirects=False)
