@@ -255,11 +255,8 @@ class MediafireDownloader:
                 unit_scale=True,
             ) as pbar:
                 for chunk in r.iter_content(chunk_size=chunk_size):
-                    # NOTE: This is necessary to filter out "keep-alive" chunks?
-                    # But the requests docs don't mention this at all.
-                    if chunk:
-                        f.write(chunk)
-                        pbar.update(len(chunk))
+                    f.write(chunk)
+                    pbar.update(len(chunk))
         except Exception as exc:
             logger.error(f"Failed to download {url}, skipping: {exc}")
 
