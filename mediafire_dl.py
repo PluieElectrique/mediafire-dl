@@ -70,7 +70,9 @@ def get_clean_foldername(fk, name):
 
 
 class MediafireError(Exception):
-    pass
+    def __init__(self, code, message):
+        self.code = code
+        self.message = message
 
 
 class MediafireDownloader:
@@ -104,17 +106,15 @@ class MediafireDownloader:
             # -1 is not used by the actual API, so this error message will
             # always be printed
             raise MediafireError(
-                (
-                    -1,
-                    f"Failed to decode JSON: {exc}\n"
-                    f"method={repr(method)}, params={params}, r.text={repr(r.text)}",
-                )
+                -1,
+                f"Failed to decode JSON: {exc}\n"
+                f"method={repr(method)}, params={params}, r.text={repr(r.text)}",
             )
 
         if resp["result"] == "Success":
             return resp
         else:
-            raise MediafireError((resp["error"], resp["message"]))
+            raise MediafireError(resp["error"], resp["message"])
 
     # We set a default chunk size just below the max of 500 to be safe
     def get_file_info(self, quickkeys, chunk_size=450):
@@ -147,7 +147,7 @@ class MediafireDownloader:
                     file_info.extend(resp["file_infos"])
                 skipped.extend(filter(None, resp.get("skipped", "").split(",")))
             except MediafireError as err:
-                if err.args[0][0] != 110:
+                if err.code != 110:
                     logger.error(f"Failed to get info for quickkeys {chunk}: {err}")
                 skipped.extend(chunk)
 
@@ -163,7 +163,7 @@ class MediafireDownloader:
                 "folder_info"
             ]
         except MediafireError as err:
-            if err.args[0][0] != 112:
+            if err.args != 112:
                 logger.error(f"Failed to get info for folder {folderkey}: {err}")
 
     def get_folder_contents(
