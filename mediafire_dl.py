@@ -207,14 +207,19 @@ class MediafireDownloader:
     # file) to the given path
     def download_from_url(self, url, path, file_size=None, chunk_size=16384):
         if file_size is None:
-            head = self.s.head(url)
+            # /conv/ links might redirect to ?size_id=[some number]
+            head = self.s.head(url, allow_redirects=True)
             # XXX: If file_size is provided, this is probably a file that we
             # know exists (the API doesn't return anything for skipped files
             # and we don't try to download deleted files). If not, this is
             # probably a conv link, so it might not exist. This is tight
             # coupling, but I can't think of a better way right now.
             head.raise_for_status()
-            file_size = int(head.headers.get("Content-Length", -1))
+            if "Content-Length" in head.headers:
+                file_size = int(head.headers.get("Content-Length"))
+            else:
+                logger.error(f"No Content-Length found for {head.url}: {head.headers}")
+                return
 
         start_byte = os.path.getsize(path) if os.path.exists(path) else 0
 
@@ -227,6 +232,7 @@ class MediafireDownloader:
             )
             return
         elif file_size == start_byte:
+            logger.debug(f"Already downloaded {url}")
             return
 
         desc = os.path.basename(path)
