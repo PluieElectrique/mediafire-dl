@@ -108,7 +108,7 @@ class MediafireDownloader:
             raise MediafireError(
                 -1,
                 f"Failed to decode JSON: {exc}\n"
-                f"method={repr(method)}, params={params}, r.text={repr(r.text)}",
+                f"method={method}, params={params}, r.text=`{r.text}`",
             )
 
         if resp["result"] == "Success":
@@ -185,8 +185,10 @@ class MediafireDownloader:
             params["chunk"] = chunk
             try:
                 resp = self.mf_api("folder/get_content", params=params)
-            except MediafireError:
-                logger.error(f"Failed to get chunk {chunk} of folder {folderkey}")
+            except MediafireError as err:
+                logger.error(
+                    f"Failed to get chunk {chunk} of folder {folderkey}: {err}"
+                )
                 return contents
             chunk += 1
 
