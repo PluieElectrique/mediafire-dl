@@ -107,8 +107,7 @@ class MediafireDownloader:
             # always be printed
             raise MediafireError(
                 -1,
-                f"Failed to decode JSON: {exc}\n"
-                f"method={method}, data={data}, r.text=`{r.text}`",
+                f"Failed to decode JSON: {method=}, {r.text=}, {data=}: {exc}",
             )
 
         if resp["result"] == "Success":
@@ -220,7 +219,9 @@ class MediafireDownloader:
             if "Content-Length" in head.headers:
                 file_size = int(head.headers.get("Content-Length"))
             else:
-                logger.error(f"No Content-Length found for {head.url}: {head.headers}")
+                logger.error(
+                    f"No Content-Length found for {head.url} in {head.headers}"
+                )
                 return
 
         start_byte = os.path.getsize(path) if os.path.exists(path) else 0
@@ -460,9 +461,7 @@ if __name__ == "__main__":
         except Exception as exc:
             # It's ugly to wrap everything in a try block, but it's more
             # important to not crash whenever possible
-            logger.error(
-                f"Failed to process file: info={info}, path={repr(path)}: {exc}"
-            )
+            logger.error(f"Failed to process file: {info=}, {path=}: {exc}")
 
     def process_folder(fk, path, pbar):
         folder = folders[fk]
@@ -488,9 +487,7 @@ if __name__ == "__main__":
         except Exception as exc:
             # It's ugly to wrap everything in a try block, but it's more
             # important to not crash whenever possible
-            logger.error(
-                f"Failed to process folder: info={info}, path={repr(path)}: {exc}"
-            )
+            logger.error(f"Failed to process folder: {info=}, {path=}: {exc}")
 
     with tqdm(desc="Process folders", total=len(folders), unit="") as pbar:
         for fk, folder in folders.items():
