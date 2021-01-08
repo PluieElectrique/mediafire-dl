@@ -35,9 +35,9 @@ Put your file keys (quickkeys), folder keys, custom folders, and conv links in a
 
 Run the tool with:
 ```
-python mediafire_dl.py [-h] [--metadata-only] [--indent INDENT] input out_dir
+python mediafire_dl.py input out_dir
 ```
-Where `input` is the JSON file from above, and `out_dir` is where you want to save everything. Pass `--metadata-only` to only fetch metadata or `--indent` to change the JSON indent.
+Where `input` is the JSON file from above, and `out_dir` is where you want to save everything. (For a description of the other options, run `python mediafire_dl.py -h`.)
 
 The structure of the output directory will look like this:
 ```
@@ -54,7 +54,7 @@ out_dir/
     ...
   another owner/
     ...
-  conv_file1.jpg
+  [CONV ID 1].jpg
   ...
 ```
 The `mfdl_summary_[TIMESTAMP].json` file contains the skipped file/folder keys (which don't exist) and the deleted file keys (for which the API returned data, but the actual file is gone).
