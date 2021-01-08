@@ -97,9 +97,9 @@ class MediafireDownloader:
         self.s.mount("http://", adapter)
         self.s.mount("https://", adapter)
 
-    def mf_api(self, method, params):
-        params["response_format"] = "json"
-        r = self.s.post(self.MEDIAFIRE_API_BASE + method + ".php", params=params)
+    def mf_api(self, method, data):
+        data["response_format"] = "json"
+        r = self.s.post(self.MEDIAFIRE_API_BASE + method + ".php", data=data)
         try:
             resp = r.json()["response"]
         except Exception as exc:
@@ -108,7 +108,7 @@ class MediafireDownloader:
             raise MediafireError(
                 -1,
                 f"Failed to decode JSON: {exc}\n"
-                f"method={method}, params={params}, r.text=`{r.text}`",
+                f"method={method}, data={data}, r.text=`{r.text}`",
             )
 
         if resp["result"] == "Success":
