@@ -437,11 +437,12 @@ if __name__ == "__main__":
             if "delete_date" in info:
                 deleted.append(qk)
             elif not args.metadata_only:
+                normal_download = info["links"]["normal_download"]
                 download_url, upload_country = mfdl.scrape_download_page(
-                    info["links"]["normal_download"]
+                    normal_download
                 )
                 if not download_url:
-                    logger.warning(f"No download URL found for {download_url}")
+                    logger.warning(f"No download URL found for {normal_download}")
                     return
 
                 mfdl.download_from_url(
