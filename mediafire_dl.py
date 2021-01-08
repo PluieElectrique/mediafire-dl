@@ -159,7 +159,7 @@ class MediafireDownloader:
     # `details` parameter because `get_content` is far more useful.
     def get_folder_info(self, folderkey):
         try:
-            return self.mf_api("folder/get_info", params={"folder_key": folderkey})[
+            return self.mf_api("folder/get_info", {"folder_key": folderkey})[
                 "folder_info"
             ]
         except MediafireError as err:
@@ -174,7 +174,7 @@ class MediafireDownloader:
         elif not (100 <= chunk_size <= 1000):
             raise ValueError("chunk_size must be between 100 and 1000, inclusive")
 
-        params = {
+        data = {
             "folder_key": folderkey,
             "chunk_size": chunk_size,
             "content_type": content_type,
@@ -182,9 +182,9 @@ class MediafireDownloader:
         contents = []
         chunk = 1
         while True:
-            params["chunk"] = chunk
+            data["chunk"] = chunk
             try:
-                resp = self.mf_api("folder/get_content", params=params)
+                resp = self.mf_api("folder/get_content", data)
             except MediafireError as err:
                 logger.error(
                     f"Failed to get chunk {chunk} of folder {folderkey}: {err}"
