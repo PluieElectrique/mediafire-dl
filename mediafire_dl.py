@@ -257,6 +257,11 @@ class MediafireDownloader:
                 for chunk in r.iter_content(chunk_size=chunk_size):
                     f.write(chunk)
                     pbar.update(len(chunk))
+
+                if pbar.n == 0:
+                    logger.warning(
+                        f"Downloaded nothing for {url=}, {start_byte=}, {file_size=}, {r.headers=}"
+                    )
         except Exception as exc:
             logger.error(f"Failed to download {url}, skipping: {exc}")
 
