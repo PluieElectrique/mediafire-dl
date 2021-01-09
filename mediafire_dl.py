@@ -29,6 +29,15 @@ def try_mkdir(path):
         pass
 
 
+def search_group(pattern, string, group=1):
+    match = pattern.search(string)
+    if match:
+        if group is None:
+            return match.groups()
+        else:
+            return match.group(group)
+
+
 def sanitize_filename(filename, max_bytes=255):
     filename = ASCII_CONTROL.sub("", filename)
     # The forbidden characters are common enough that we replace them with an
@@ -96,6 +105,10 @@ class MediafireDownloader:
         r'<div class="lazyload DLExtraInfo-sectionGraphic flag" data-lazyclass="flag-(..)">'
     )
     CUSTOM_FOLDER_SCRAPE_RE = re.compile(r'gs= false,afI= "([a-z0-9]{13})",afQ= 0')
+    ERROR_URL_RE = re.compile(r"mediafire\.com/error\.php\?errno=(\d+)")
+    TAKEDOWN_SCRAPE_RE = re.compile(
+        r"taken down on <b>([^<]+)</b>.*Company: <b>([^<]+)</b>.*Email: <b>([^>]+)</b>"
+    )
 
     def __init__(self, retry_total, retry_backoff):
         self.s = requests.Session()
@@ -267,6 +280,8 @@ class MediafireDownloader:
             logger.error(f"Failed to download {url}, skipping: {exc}")
 
     def scrape_download_page(self, url):
+        extra_info = {}
+
         r = self.s.get(url, allow_redirects=False)
         redirects = 0
         while r.next:
@@ -277,19 +292,38 @@ class MediafireDownloader:
             location = r.headers["Location"]
             # Some quickkeys redirect to a direct download
             if self.DL_URL_RE.match(location):
-                return location, None
+                return location, extra_info
 
             r = self.s.send(r.next, allow_redirects=False)
 
-        download_url = self.DL_URL_SCRAPE_RE.search(r.text)
-        # The URL will be missing if the file no longer exists, was removed for
-        # violating TOS, etc.
+        download_url = search_group(self.DL_URL_SCRAPE_RE, r.text)
         if download_url:
-            upload_country = self.UPLOAD_COUNTRY_SCRAPE_RE.search(r.text)
-            upload_country = upload_country.group(1) if upload_country else None
-            return download_url.group(1), upload_country
+            extra_info["upload_country"] = search_group(
+                self.UPLOAD_COUNTRY_SCRAPE_RE, r.text
+            )
         else:
-            return None, None
+            errno = search_group(self.ERROR_URL_RE, r.url)
+            if errno == 378:
+                logger.warning(f"File taken down for violating TOS: {url}")
+                takedown_info = search_group(
+                    self.TAKEDOWN_SCRAPE_RE, r.text, group=None
+                )
+                extra_info["takedown"] = dict(
+                    zip(
+                        ["date", "company", "email"],
+                        takedown_info or [None, None, None],
+                    )
+                )
+            elif errno == 380:
+                logger.warning(f"File blocked via DCMA: {url}")
+            elif errno == 386:
+                logger.warning(f"File removed for violating TOS: {url}")
+            elif errno is not None:
+                logger.warning(f"File not available, error {errno}: {url}")
+            else:
+                logger.warning(f"No download URL found: {url}")
+
+        return download_url, extra_info
 
     def scrape_custom_folder(self, name):
         # Without a user agent, the <script> containing the folderkey will be
@@ -300,10 +334,14 @@ class MediafireDownloader:
         folderkey = self.CUSTOM_FOLDER_SCRAPE_RE.search(r.text)
         if folderkey:
             return folderkey.group(1)
-        elif r.url == "https://www.mediafire.com/error.php?errno=370":
-            logger.warning(f"Direct linking disabled for custom folder: {name}")
         else:
-            logger.warning(f"Invalid custom folder: {name}")
+            errno = search_group(self.ERROR_URL_RE, r.url)
+            if errno == 370:
+                logger.warning(f"Direct linking disabled for custom folder: {name}")
+            elif errno is not None:
+                logger.warning(f"Error {errno} for custom folder: {name}")
+            else:
+                logger.warning(f"Invalid custom folder: {name}")
 
 
 if __name__ == "__main__":
@@ -443,21 +481,17 @@ if __name__ == "__main__":
             if "delete_date" in info:
                 deleted.append(qk)
             elif not args.metadata_only:
-                normal_download = info["links"]["normal_download"]
-                download_url, upload_country = mfdl.scrape_download_page(
-                    normal_download
+                download_url, extra_info = mfdl.scrape_download_page(
+                    info["links"]["normal_download"]
                 )
-                if not download_url:
-                    logger.warning(f"No download URL found for {normal_download}")
-                    return
+                info |= extra_info
 
-                mfdl.download_from_url(
-                    download_url,
-                    os.path.join(path, name),
-                    file_size=int(info["size"]),
-                )
-                if upload_country:
-                    info["upload_country"] = upload_country
+                if download_url:
+                    mfdl.download_from_url(
+                        download_url,
+                        os.path.join(path, name),
+                        file_size=int(info["size"]),
+                    )
 
             with open(os.path.join(path, name + ".json"), "w") as f:
                 json.dump(info, f, indent=args.indent)
