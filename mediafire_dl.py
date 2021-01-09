@@ -77,8 +77,16 @@ class MediafireError(Exception):
 
 class MediafireDownloader:
     MEDIAFIRE_API_BASE = "https://www.mediafire.com/api/1.5/"
+
+    DOWNLOAD_CHUNK_SIZE = 2 ** 20
     # Required for scraping custom folders
     USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; rv:78.0) Gecko/20100101 Firefox/78.0"
+    # Just below the max of 500 to be safe
+    FILE_INFO_CHUNK_SIZE = 450
+    # Between 100 to 1000
+    FOLDER_CONTENTS_CHUNK_SIZE = 1000
+    MAX_REDIRECTS = requests.models.DEFAULT_REDIRECT_LIMIT
+
     QUICKKEY_RE = re.compile(r"[a-z0-9]{11}|[a-z0-9]{15}")
     DL_URL_RE = re.compile(r"https://download\d+\.mediafire\.com/")
     DL_URL_SCRAPE_RE = re.compile(
@@ -88,7 +96,6 @@ class MediafireDownloader:
         r'<div class="lazyload DLExtraInfo-sectionGraphic flag" data-lazyclass="flag-(..)">'
     )
     CUSTOM_FOLDER_SCRAPE_RE = re.compile(r'gs= false,afI= "([a-z0-9]{13})",afQ= 0')
-    MAX_REDIRECTS = requests.models.DEFAULT_REDIRECT_LIMIT
 
     def __init__(self, retry_total, retry_backoff):
         self.s = requests.Session()
@@ -115,8 +122,7 @@ class MediafireDownloader:
         else:
             raise MediafireError(resp["error"], resp["message"])
 
-    # We set a default chunk size just below the max of 500 to be safe
-    def get_file_info(self, quickkeys, chunk_size=450):
+    def get_file_info(self, quickkeys):
         if not quickkeys:
             return [], []
 
@@ -132,11 +138,11 @@ class MediafireDownloader:
         for i in trange(
             0,
             len(quickkeys),
-            chunk_size,
+            self.FILE_INFO_CHUNK_SIZE,
             unit="req",
             desc="Get file info",
         ):
-            chunk = quickkeys[i : i + chunk_size]
+            chunk = quickkeys[i : i + self.FILE_INFO_CHUNK_SIZE]
             try:
                 resp = self.mf_api("file/get_info", {"quick_key": ",".join(chunk)})
                 if len(chunk) == 1:
@@ -165,17 +171,13 @@ class MediafireDownloader:
             if err.code != 112:
                 logger.error(f"Failed to get info for folder {folderkey}: {err}")
 
-    def get_folder_contents(
-        self, folderkey, content_type="folders", owner_name=None, chunk_size=1000
-    ):
+    def get_folder_contents(self, folderkey, content_type="folders", owner_name=None):
         if content_type not in ["folders", "files"]:
             raise ValueError("content_type must be 'folders' or 'files'")
-        elif not (100 <= chunk_size <= 1000):
-            raise ValueError("chunk_size must be between 100 and 1000, inclusive")
 
         data = {
             "folder_key": folderkey,
-            "chunk_size": chunk_size,
+            "chunk_size": self.FOLDER_CONTENTS_CHUNK_SIZE,
             "content_type": content_type,
         }
         contents = []
@@ -206,7 +208,7 @@ class MediafireDownloader:
 
     # Download the file at the given URL (can be any URL, not just a Mediafire
     # file) to the given path
-    def download_from_url(self, url, path, file_size=None, chunk_size=16384):
+    def download_from_url(self, url, path, file_size=None):
         if file_size is None:
             # /conv/ links might redirect to ?size_id=[some number]
             head = self.s.head(url, allow_redirects=True)
@@ -254,7 +256,7 @@ class MediafireDownloader:
                 unit="B",
                 unit_scale=True,
             ) as pbar:
-                for chunk in r.iter_content(chunk_size=chunk_size):
+                for chunk in r.iter_content(chunk_size=self.DOWNLOAD_CHUNK_SIZE):
                     f.write(chunk)
                     pbar.update(len(chunk))
 
