@@ -480,13 +480,13 @@ if __name__ == "__main__":
 
             if "delete_date" in info:
                 deleted.append(qk)
-            elif not args.metadata_only:
+            else:
                 download_url, extra_info = mfdl.scrape_download_page(
                     info["links"]["normal_download"]
                 )
                 info |= extra_info
 
-                if download_url:
+                if not args.metadata_only and download_url:
                     mfdl.download_from_url(
                         download_url,
                         os.path.join(path, name),
