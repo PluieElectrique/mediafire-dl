@@ -162,7 +162,7 @@ class MediafireDownloader:
                 "folder_info"
             ]
         except MediafireError as err:
-            if err.args != 112:
+            if err.code != 112:
                 logger.error(f"Failed to get info for folder {folderkey}: {err}")
 
     def get_folder_contents(
