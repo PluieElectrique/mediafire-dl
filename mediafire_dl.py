@@ -303,7 +303,7 @@ class MediafireDownloader:
             )
         else:
             errno = search_group(self.ERROR_URL_RE, r.url)
-            if errno == 378:
+            if errno == "378":
                 logger.warning(f"File taken down for violating TOS: {url}")
                 takedown_info = search_group(
                     self.TAKEDOWN_SCRAPE_RE, r.text, group=None
@@ -314,9 +314,9 @@ class MediafireDownloader:
                         takedown_info or [None, None, None],
                     )
                 )
-            elif errno == 380:
+            elif errno == "380":
                 logger.warning(f"File blocked via DCMA: {url}")
-            elif errno == 386:
+            elif errno == "386":
                 logger.warning(f"File removed for violating TOS: {url}")
             elif errno is not None:
                 logger.warning(f"File not available, error {errno}: {url}")
@@ -336,7 +336,7 @@ class MediafireDownloader:
             return folderkey.group(1)
         else:
             errno = search_group(self.ERROR_URL_RE, r.url)
-            if errno == 370:
+            if errno == "370":
                 logger.warning(f"Direct linking disabled for custom folder: {name}")
             elif errno is not None:
                 logger.warning(f"Error {errno} for custom folder: {name}")
