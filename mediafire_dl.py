@@ -110,11 +110,10 @@ class MediafireDownloader:
         try:
             resp = r.json()["response"]
         except Exception as exc:
-            # -1 is not used by the actual API, so this error message will
-            # always be printed
             raise MediafireError(
-                -1,
-                f"Failed to decode JSON: {method=}, {r.text=}, {data=}: {exc}",
+                None,
+                f"Failed to decode JSON: {method=}, {data=}, {r.text=}, "
+                f"{r.headers=}, {r.cookies=}: {exc}",
             )
 
         if resp["result"] == "Success":
