@@ -83,6 +83,12 @@ class MediafireError(Exception):
         self.code = code
         self.message = message
 
+    def __str__(self):
+        # The default __str__ uses repr() on self.message, which is hard to
+        # read if there are strings nested in the message (see the "Failed to
+        # decode JSON" error)
+        return f"({self.code}, {self.message})"
+
 
 class MediafireDownloader:
     MEDIAFIRE_API_BASE = "https://www.mediafire.com/api/1.5/"
@@ -125,8 +131,8 @@ class MediafireDownloader:
         except Exception as exc:
             raise MediafireError(
                 None,
-                f"Failed to decode JSON: {method=}, {data=}, {r.text=}, "
-                f"{r.request.headers=}, {r.headers=}, {exc}",
+                f"Failed to decode JSON:\n{exc=}\n{method=}\n{data=}\n"
+                f"{r.text=}\n{r.request.headers=}\n{r.headers=}",
             )
 
         if resp["result"] == "Success":
