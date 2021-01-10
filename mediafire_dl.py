@@ -126,7 +126,7 @@ class MediafireDownloader:
             raise MediafireError(
                 None,
                 f"Failed to decode JSON: {method=}, {data=}, {r.text=}, "
-                f"{r.headers=}, {r.cookies=}: {exc}",
+                f"{r.request.headers=}: {exc}",
             )
 
         if resp["result"] == "Success":
@@ -321,7 +321,7 @@ class MediafireDownloader:
             elif errno is not None:
                 logger.warning(f"File not available, error {errno}: {url}")
             else:
-                logger.warning(f"No download URL found: {url}")
+                logger.warning(f"No download URL found: {url=}, {r.text=}")
 
         return download_url, extra_info
 
