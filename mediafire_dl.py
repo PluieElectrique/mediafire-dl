@@ -484,7 +484,7 @@ if __name__ == "__main__":
                 download_url, extra_info = mfdl.scrape_download_page(
                     info["links"]["normal_download"]
                 )
-                info |= extra_info
+                info.update(extra_info)
 
                 if not args.metadata_only and download_url:
                     mfdl.download_from_url(
