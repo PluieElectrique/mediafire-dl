@@ -126,7 +126,7 @@ class MediafireDownloader:
             raise MediafireError(
                 None,
                 f"Failed to decode JSON: {method=}, {data=}, {r.text=}, "
-                f"{r.request.headers=}: {exc}",
+                f"{r.request.headers=}, {r.headers=}, {exc}",
             )
 
         if resp["result"] == "Success":
