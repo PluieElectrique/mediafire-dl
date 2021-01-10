@@ -309,7 +309,9 @@ class MediafireDownloader:
             )
         else:
             errno = search_group(self.ERROR_URL_RE, r.url)
-            if errno == "378":
+            if errno == "324":
+                logger.warning(f"File blocked by Google: {url}")
+            elif errno == "378":
                 logger.warning(f"File taken down for violating TOS: {url}")
                 takedown_info = search_group(
                     self.TAKEDOWN_SCRAPE_RE, r.text, group=None
