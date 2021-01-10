@@ -416,7 +416,7 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, write_summary_handler)
 
-    for url in tqdm(input_keys.get("conv", []), desc="Get conv links", unit=""):
+    for url in tqdm(input_keys.get("conv", []), desc="Get conv links", unit="link"):
         try:
             path = os.path.join(args.out_dir, url.split("/")[-1])
             mfdl.download_from_url(url, path)
@@ -437,7 +437,7 @@ if __name__ == "__main__":
         else:
             skipped.append(custom_name)
 
-    pbar = tqdm(desc="Get folder info", unit="")
+    pbar = tqdm(desc="Get folder info", unit="dir")
     while folderkeys_queue:
         fk = folderkeys_queue.pop()
         folderkeys_seen.add(fk)
@@ -526,7 +526,7 @@ if __name__ == "__main__":
             # important to not crash whenever possible
             logger.error(f"Failed to process folder: {info=}, {path=}: {exc}")
 
-    with tqdm(desc="Process folders", total=len(folders), unit="") as pbar:
+    with tqdm(desc="Process folders", total=len(folders), unit="dir") as pbar:
         for fk, folder in folders.items():
             if not folder["is_child"]:
                 path = os.path.join(
