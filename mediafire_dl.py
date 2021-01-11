@@ -1,6 +1,7 @@
 import argparse
 from collections import defaultdict
 from datetime import datetime
+from http import cookiejar
 import json
 import logging
 import os
@@ -78,6 +79,10 @@ def get_clean_foldername(fk, name):
     return f"{sanitized}_{fk}"
 
 
+class NoCookiePolicy(cookiejar.DefaultCookiePolicy):
+    return_ok = set_ok = domain_return_ok = path_return_ok = lambda self, *args: False
+
+
 class MediafireError(Exception):
     def __init__(self, code, message):
         self.code = code
@@ -118,6 +123,10 @@ class MediafireDownloader:
 
     def __init__(self, retry_total, retry_backoff):
         self.s = requests.Session()
+        # We use a Session to reuse connections. But downloading lots of files
+        # will accumulate cookies until they pass the 8k limit and cause "400
+        # Request Header Or Cookie Too Large" errors
+        self.s.cookies.set_policy(NoCookiePolicy())
         retry = Retry(total=retry_total, backoff_factor=retry_backoff)
         adapter = HTTPAdapter(max_retries=retry)
         self.s.mount("http://", adapter)
@@ -280,7 +289,8 @@ class MediafireDownloader:
 
                 if pbar.n == 0:
                     logger.warning(
-                        f"Downloaded nothing for {url=}, {start_byte=}, {file_size=}, {r.headers=}"
+                        f"Downloaded nothing for {url=}, {start_byte=}, {file_size=}, "
+                        f"{r.request.headers=}, {r.headers=}"
                     )
         except Exception as exc:
             logger.error(f"Failed to download {url}, skipping: {exc}")
