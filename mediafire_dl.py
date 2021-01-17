@@ -336,6 +336,8 @@ class MediafireDownloader:
                 logger.warning(f"File blocked via DCMA: {url}")
             elif errno == "386":
                 logger.warning(f"File removed for violating TOS: {url}")
+            elif errno == "388":
+                logger.warning(f"File blocked by copyright: {url}")
             elif errno is not None:
                 logger.warning(f"File not available, error {errno}: {url}")
             else:
