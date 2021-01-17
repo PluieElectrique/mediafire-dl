@@ -120,6 +120,9 @@ class MediafireDownloader:
     TAKEDOWN_SCRAPE_RE = re.compile(
         r"taken down on <b>([^<]+)</b>.*Company: <b>([^<]+)</b>.*Email: <b>([^>]+)</b>"
     )
+    PASSWORD_PROTECTED_RE = re.compile(
+        r'<label for="downloadp" style="display: none">Enter Password</label>'
+    )
 
     def __init__(self, retry_total, retry_backoff):
         self.s = requests.Session()
@@ -317,6 +320,8 @@ class MediafireDownloader:
             extra_info["upload_country"] = search_group(
                 self.UPLOAD_COUNTRY_SCRAPE_RE, r.text
             )
+        elif self.PASSWORD_PROTECTED_RE.search(r.text):
+            logger.warning(f"Password protected file: {url}")
         else:
             errno = search_group(self.ERROR_URL_RE, r.url)
             if errno == "324":
